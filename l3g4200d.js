@@ -91,7 +91,9 @@ var waitForData = function() {
 		try {
 			status = 0x00;
 			wire.readBytes(register.status_reg, 1, function(err, data) {
-
+				if(err){
+					console.log("Error Waiting for Data: ",err);
+				}
 				if (data) {
 					status = data.readUInt8(0);
 				}
@@ -105,7 +107,7 @@ var waitForData = function() {
 	}
 };
 
-var minCalibration = 25;
+var minCalibration = 50;
 //at 250 DPS, 1 unit = 0.00875 degrees
 // which means that 114.28 units = 1 degree
 var dpu = 114.28;
@@ -161,14 +163,15 @@ var read = function(observer) {
 					callback(err, res);
 				});
 			}], function(err, res) {
-
-				var xh = res[0].readInt8(0) << 8;
-				var xl = res[1].readInt8(0)
-				var yh = res[2].readInt8(0) << 8;
-				var yl = res[3].readInt8(0)
-				var zh = res[4].readInt8(0) << 8;
-				var zl = res[5].readInt8(0)
-
+				// my guess is that this is where the segfault is happening.
+				var xl = res[0].readInt8(0);
+				var xh = res[1].readInt8(0)<< 8;
+				var yl = res[2].readInt8(0);
+				var yh = res[3].readInt8(0) << 8;
+				var zl = res[4].readInt8(0);
+				var zh = res[5].readInt8(0)<< 8;
+				////^^^^-----^^^^
+				
 				var r = {
 					x : xh + xl,
 					y : yh + yl,
