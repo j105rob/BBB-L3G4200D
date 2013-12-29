@@ -1,7 +1,7 @@
 if ( typeof exports === 'undefined')
 	exports = {};
 /*
- L3G4200D 3 Axis Gyro
+ L3G4200D 3 Axis Digital Gyro
  ====================
 
  Notes
@@ -10,6 +10,8 @@ if ( typeof exports === 'undefined')
 
  ODR is 100 Hz for my Normal Mode
  SDO pulled to ground for address of 0x68
+
+ TODO: need to dump the gyro registers at startup for validation of running config
 
  */
 
@@ -82,6 +84,7 @@ var initialize = function() {
 		deviceReady = true;
 		console.log("Gyro Ready");
 	};
+	calibrate();
 
 };
 
@@ -91,8 +94,8 @@ var waitForData = function() {
 		try {
 			status = 0x00;
 			wire.readBytes(register.status_reg, 1, function(err, data) {
-				if(err){
-					console.log("Error Waiting for Data: ",err);
+				if (err) {
+					console.log("Error Waiting for Data: ", err);
 				}
 				if (data) {
 					status = data.readUInt8(0);
@@ -111,27 +114,48 @@ var minCalibration = 50;
 //at 250 DPS, 1 unit = 0.00875 degrees
 // which means that 114.28 units = 1 degree
 var dpu = 114.28;
-var angle = function(observer) {
+
+var accum = {
+	x : 0,
+	y : 0,
+	z : 0
+};
+var dt = 0.01;
+//sample rate 10 ms or 100Hz
+
+//angle is an integral
+//concept taken from: http://www.pieter-jan.com/node/7
+var getAngle = function() {
+	var sample = {}
 	read(function(data) {
-		observer({
-			x : (data.x - calibrated.x) / dpu,
-			y : (data.y - calibrated.y) / dpu,
-			z : (data.z - calibrated.z) / dpu
-		})
+		sample.x = (data.x - calibrated.x) / dpu * dt;
+		sample.y = (data.y - calibrated.y) / dpu *dt;
+		sample.z = (data.z - calibrated.z) / dpu *dt;
+		accum.x += sample.x;
+		accum.y += sample.y;
+		accum.z += sample.z;
 	});
 };
 
+var isOn = true;
+//this puts the gyro into a loop
+var run = function() {
+	if (isOn) {
+		process.nextTick( function() {
+			getAngle();
+			run();
+		}.bind(this));
+	}
+};
+var stop = function() {
+	isOn = false;
+};
+var angle = function(observer){
+	observer(accum);
+};
 var read = function(observer) {
 	if (waitForData()) {
 		try {
-
-			//var bxl = wire.readBytes(register.out_x_l, 1);
-			//var bxh = wire.readBytes(register.out_x_h, 1);
-			//var byl = wire.readBytes(register.out_y_l, 1);
-			//var byh = wire.readBytes(register.out_y_h, 1);
-			//var bzl = wire.readBytes(register.out_z_l, 1);
-			//var bzh = wire.readBytes(register.out_z_h, 1);
-
 			async.parallel([
 			function(callback) {
 				wire.readBytes(register.out_x_l, 1, function(err, res) {
@@ -165,24 +189,18 @@ var read = function(observer) {
 			}], function(err, res) {
 				// my guess is that this is where the segfault is happening.
 				var xl = res[0].readInt8(0);
-				var xh = res[1].readInt8(0)<< 8;
+				var xh = res[1].readInt8(0) << 8;
 				var yl = res[2].readInt8(0);
 				var yh = res[3].readInt8(0) << 8;
 				var zl = res[4].readInt8(0);
-				var zh = res[5].readInt8(0)<< 8;
+				var zh = res[5].readInt8(0) << 8;
 				////^^^^-----^^^^
-				
+
 				var r = {
 					x : xh + xl,
 					y : yh + yl,
 					z : zh + zl
 				}
-				/*
-				var r = {
-					x : 0,
-					y : 0,
-					z : 0
-				}*/
 				observer(r);
 			});
 
@@ -216,8 +234,7 @@ var calibrate = function() {
 
 //exports below
 exports.initialize = initialize;
-exports.read = read;
 exports.angle = angle;
-exports.calibrate = calibrate;
-exports.register = register;
-exports.command = command;
+exports.run = run;
+exports.stop = stop;
+

@@ -15,6 +15,7 @@ if ( typeof exports === 'undefined')
 var b = require("bonescript");
 var i2c = require("i2c");
 var async = require("async");
+var lowPass = require("../filters/lowpass");
 
 var register = {
 	DEVID : 0x00, //Device ID Register
@@ -61,7 +62,14 @@ var wire = new i2c(address, {
 	device : port
 });
 var deviceReady = false;
-var initialize = function() {
+var options = {};
+var initialize = function(args) {
+
+	if (args.lowPass) {
+		options.lowPass = args.lowPass;
+	}
+	console.log(options);
+
 	wire.writeBytes(register.DATA_FORMAT, [command.normal_mode], function(err) {
 		console.log("Initialize Error Data Format:", err);
 		deviceReady = false;
@@ -70,20 +78,56 @@ var initialize = function() {
 		console.log("Initialize Error POWER_CTL:", err);
 		deviceReady = false;
 	});
+	deviceReady = true;
+	calibrate();
 };
-//Convert the accelerometer value to G's. 
-  //With 10 bits measuring over a +/-4g range we can find how to convert by using the equation:
-  // Gs = Measurement Value * (G-range/(2^10)) or Gs = Measurement Value * (8/1024)
+//Convert the accelerometer value to G's.
+//With 10 bits measuring over a +/-4g range we can find how to convert by using the equation:
+//G-range = 8 because -4 to +4 is 8;
+// Gs = Measurement Value * (G-range /(2^10)) or Gs = Measurement Value * (8/1024)
 var Gs = 0.0078;
-
+var dt = 0.01;
+//10ms or 100 Hz
+var accum = {
+	xgs : 0,
+	ygs : 0,
+	zgs : 0,
+	xraw : 0,
+	yraw : 0,
+	zraw : 0,
+	forceMagnitude : 0
+};
 var angle = function(observer) {
+	observer(accum);
+};
+var getAngle = function(observer) {
 	read(function(data) {
-		observer({
-			x : (data.x - calibrated.x) * Gs,
-			y : (data.y - calibrated.y) * Gs,
-			z : (data.z - calibrated.z) * Gs
-		})
+
+		accum.xgs = (data.x - calibrated.x) * Gs;
+		accum.ygs = (data.y - calibrated.y) * Gs;
+		accum.zgs = (data.z - calibrated.z) * Gs;
+		accum.xraw = data.x;
+		accum.yraw = data.y;
+		accum.zraw = data.z;
+		accum.forceMagnitude = (Math.abs(data.x) + Math.abs(data.y) + Math.abs(data.z)) - calibrated.forceMagnitude;
 	});
+};
+
+var isOn = true;
+//this puts the gyro into a loop
+var run = function() {
+	if (isOn) {
+		process.nextTick( function() {
+			getAngle();
+			run();
+		}.bind(this));
+	}
+};
+var stop = function() {
+	isOn = false;
+};
+var angle = function(observer) {
+	observer(accum);
 };
 var calibrated = {
 	x : 0,
@@ -104,6 +148,7 @@ var calibrate = function() {
 	calibrated.x = cx / minCalibration;
 	calibrated.y = cy / minCalibration;
 	calibrated.z = cz / minCalibration;
+	calibrated.forceMagnitude = (Math.abs(cx) + Math.abs(cy) + Math.abs(cz)) / minCalibration;
 	console.log("Accel Calibration Complete", calibrated);
 };
 var read = function(observer) {
@@ -140,34 +185,36 @@ var read = function(observer) {
 				callback(err, res);
 			});
 		}], function(err, res) {
-			// my guess is that this is where the segfault is happening.
-			var xl = res[0].readInt8(0);
-			var xh = res[1].readInt8(0) << 8;
-			var yl = res[2].readInt8(0);
-			var yh = res[3].readInt8(0) << 8;
-			var zl = res[4].readInt8(0);
-			var zh = res[5].readInt8(0) << 8;
-			//console.log("test",xh|xl);
-			////^^^^-----^^^^
+			/*/ my guess is that this is where the segfault is happening.
+			 var xl = res[0].readInt8(0);
+			 var xh = res[1].readInt8(0) << 8;
+			 var yl = res[2].readInt8(0);
+			 var yh = res[3].readInt8(0) << 8;
+			 var zl = res[4].readInt8(0);
+			 var zh = res[5].readInt8(0) << 8;
+			 //console.log("test",xh|xl);
+			 ////^^^^-----^^^^*/
+			var r = {};
+			r.x = res[1].readInt8(0) << 8 | res[0].readInt8(0);
+			r.y = res[3].readInt8(0) << 8 | res[2].readInt8(0);
+			r.z = res[5].readInt8(0) << 8 | res[4].readInt8(0);
 
-			var r = {
-				x : xh + xl,
-				y : yh + yl,
-				z : zh + zl
-			}
-			observer(r);
+			if (options.lowPass) {
+				observer(lowPass.filter(r));
+			} else {
+				observer(r);
+			};
+
 		});
 
 	} catch(e) {
 		console.log("Error:", e);
 	}
 
-}; 
+};
 
 //exports below
 exports.initialize = initialize;
-exports.read = read;
+exports.run = run;
+exports.stop = stop;
 exports.angle = angle;
-exports.calibrate = calibrate;
-exports.register = register;
-exports.command = command;

@@ -1,3 +1,5 @@
+if ( typeof exports === 'undefined')
+	exports = {};
 /*
  // Return RC low-pass filter output samples, given input samples,
  // time interval dt, and time constant RC
@@ -15,9 +17,8 @@ var z0 = 0;
 var dt = 1 / 100;
 var rc = 0.3;
 var alpha = dt / (rc + dt);
-var samples = new Array(10);
 
-function lowPass(data) {
+function filter(data) {
 	var smoothed = {};
 	var x, y, z;
 	smoothed.x = x = Math.round((alpha * data.x) + (1.0 - alpha) * x0);
@@ -28,3 +29,5 @@ function lowPass(data) {
 	z0 = z;
 	return smoothed;
 };
+
+exports.filter = filter;
