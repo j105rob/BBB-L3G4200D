@@ -79,7 +79,7 @@ var initialize = function(args) {
 		deviceReady = false;
 	});
 	deviceReady = true;
-	calibrate();
+	//calibrate();
 };
 //Convert the accelerometer value to G's.
 //With 10 bits measuring over a +/-4g range we can find how to convert by using the equation:
@@ -106,10 +106,10 @@ var getAngle = function(observer) {
 		accum.xgs = (data.x - calibrated.x) * Gs;
 		accum.ygs = (data.y - calibrated.y) * Gs;
 		accum.zgs = (data.z - calibrated.z) * Gs;
-		accum.xraw = data.x;
-		accum.yraw = data.y;
-		accum.zraw = data.z;
-		accum.forceMagnitude = (Math.abs(data.x) + Math.abs(data.y) + Math.abs(data.z)) - calibrated.forceMagnitude;
+		accum.xraw = (data.x - calibrated.x);
+		accum.yraw = (data.y - calibrated.y);
+		accum.zraw = (data.z - calibrated.z) ;
+		accum.forceMagnitude = (Math.abs(accum.xraw) + Math.abs(accum.yraw) + Math.abs(accum.zraw));
 	});
 };
 
@@ -148,7 +148,7 @@ var calibrate = function() {
 	calibrated.x = cx / minCalibration;
 	calibrated.y = cy / minCalibration;
 	calibrated.z = cz / minCalibration;
-	calibrated.forceMagnitude = (Math.abs(cx) + Math.abs(cy) + Math.abs(cz)) / minCalibration;
+	//calibrated.forceMagnitude = (Math.abs(cx) + Math.abs(cy) + Math.abs(cz)) / minCalibration;
 	console.log("Accel Calibration Complete", calibrated);
 };
 var read = function(observer) {
@@ -185,7 +185,7 @@ var read = function(observer) {
 				callback(err, res);
 			});
 		}], function(err, res) {
-			/*/ my guess is that this is where the segfault is happening.
+			// my guess is that this is where the segfault is happening.
 			 var xl = res[0].readInt8(0);
 			 var xh = res[1].readInt8(0) << 8;
 			 var yl = res[2].readInt8(0);
@@ -193,12 +193,17 @@ var read = function(observer) {
 			 var zl = res[4].readInt8(0);
 			 var zh = res[5].readInt8(0) << 8;
 			 //console.log("test",xh|xl);
-			 ////^^^^-----^^^^*/
+			 ////^^^^-----^^^^
 			var r = {};
+			
 			r.x = res[1].readInt8(0) << 8 | res[0].readInt8(0);
 			r.y = res[3].readInt8(0) << 8 | res[2].readInt8(0);
 			r.z = res[5].readInt8(0) << 8 | res[4].readInt8(0);
-
+			/*
+			r.x = xl+xh;
+			r.y = yl+yh;
+			r.z = zl+zh;
+			*/
 			if (options.lowPass) {
 				observer(lowPass.filter(r));
 			} else {

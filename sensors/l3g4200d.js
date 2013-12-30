@@ -52,7 +52,7 @@ var bit = {
 	zyxda : 0x08
 };
 
-var address = 0x68;
+var address = 0x69;
 var port = '/dev/i2c-1';
 
 var command = {

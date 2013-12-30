@@ -36,20 +36,31 @@ var registers = {
 	yaw : 0
 };
 
+var gyroWeight = 0.90;
+var accelWeight = 0.10;
+
 //complementary filter based on http://www.pieter-jan.com/node/11
+//http://www.instructables.com/id/Guide-to-gyro-and-accelerometer-with-Arduino-inclu/
+
 var complementary = function(accel, gyro) {
-	//our accel has 10 bit resolution so 1024 = 4G, 1G = 256
+	//our accel has 10 bit resolution so 1024 = 4G, 1G = 256, 0.5G = 128, 0.25G = 64
 	//console.log("Force Mag:",accel.forceMagnitude);
 	registers.pitch = gyro.x;
-	registers.roll = gyro.y;
+	//originally PJ subtracted out the roll to keep the signs the same.. 
+	registers.roll = (gyro.y)*-1;
 	registers.yaw = gyro.z;
-	registers.forceMag = accel.forceMagnitude;
-	if (accel.forceMagnitude > 256 && accel.forceMagnitude < 1024) {
+	registers.accel = accel;
+	registers.gyro = gyro;
+	
+	if (accel.forceMagnitude > 64 && accel.forceMagnitude < 1024) {
+		//TODO: suggest moving the vector calcs into the accel class.
 		var pitchAcc = Math.atan2(accel.yraw, accel.zraw) * 180 / m_pi;
 		var rollAcc = Math.atan2(accel.xraw, accel.zraw) * 180 / m_pi;
-		registers.pitch = registers.pitch * 0.98 + pitchAcc * 0.02;
-		registers.roll = registers.roll * 0.98 + rollAcc * 0.02;
-	}
+		//TODO: need to calc a yaw vector.
+		registers.pitch = registers.pitch * gyroWeight + pitchAcc * accelWeight;
+		registers.roll = registers.roll * gyroWeight + rollAcc * accelWeight;
+		//console.log(registers);
+	};
 	console.log(registers);
 
 };
