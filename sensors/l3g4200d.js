@@ -140,15 +140,19 @@ var getAngle = function() {
 		registers.LSBy = data.y - calibrated.y
 		registers.LSBz = data.z - calibrated.z
 		
+		registers.Dx = registers.LSBx / dpu;
+		registers.Dy = registers.LSBy / dpu;
+		registers.Dz = registers.LSBz / dpu;
+		
+		registers.R = Math.sqrt(Math.pow(registers.Dx,2)+Math.pow(registers.Dy,2)+Math.pow(registers.Dz,2));
+		registers.Rx = registers.Dx/registers.R;
+		registers.Ry = registers.Dy/registers.R;
+		registers.Rz = registers.Dz/registers.R;
+		
 		registers.DPSx = registers.LSBx / dpu * dt;
 		registers.DPSy = registers.LSBy / dpu * dt;
 		registers.DPSz = registers.LSBz / dpu * dt;
-		
-		registers.R = Math.sqrt(Math.pow(registers.DPSx,2)+Math.pow(registers.DPSy,2)+Math.pow(registers.DPSz,2));
-		registers.Rx = registers.DPSx/registers.R;
-		registers.Ry = registers.DPSy/registers.R;
-		registers.Rz = registers.DPSz/registers.R;
-		
+				
 		registers.Tx += registers.DPSx;
 		registers.Ty += registers.DPSy;
 		registers.Tz += registers.DPSz;

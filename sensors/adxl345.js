@@ -121,6 +121,7 @@ var getAngle = function(observer) {
 		registers.LSBx = (data.x + calibrated.x);
 		registers.LSBy = (data.y + calibrated.y);
 		registers.LSBz = (data.z + calibrated.z);
+		
 		registers.Gx = registers.LSBx * ScaleFactor;
 		registers.Gy = registers.LSBy * ScaleFactor;
 		registers.Gz = registers.LSBz * ScaleFactor;
@@ -135,9 +136,10 @@ var getAngle = function(observer) {
 		registers.Ayr = Math.acos(registers.Gy / registers.R);
 		registers.Azr = Math.acos(registers.Gz / registers.R);
 
-		registers.rollAcc = Math.atan2(registers.Gy, registers.Gz)*180/m_pi;
-		registers.pitchAcc = Math.atan2(registers.Gx, registers.Gz)*180/m_pi;
-		registers.yawAcc = Math.atan2(registers.Gy,registers.Gx)*180/m_pi;
+		registers.roll = Math.atan2(registers.Gy, registers.Gz)*180/m_pi;
+		registers.pitch = Math.atan2(registers.Gx, registers.Gz)*180/m_pi;
+		//TODO: this is not really yaw.
+		registers.yaw = Math.atan2(registers.Gy,registers.Gx)*180/m_pi;
 
 		registers.Gmag = (Math.abs(registers.Gx) + Math.abs(registers.Gy) + Math.abs(registers.Gz));
 	});
@@ -174,8 +176,8 @@ var calibrate = function() {
 		});
 	}
 	console.log("Accel Calib Accums (x,y,z):", cx, cy, cz);
-	calibrated.x = ((cx / minCalibration) / 4) * -1;
-	calibrated.y = ((cy / minCalibration) / 4) * -1;
+	calibrated.x = ((cx / minCalibration) / 100) * -1;
+	calibrated.y = ((cy / minCalibration) / 100) * -1;
 
 	calibrated.z = (((cz / minCalibration) - 256) / 4) * -1;
 

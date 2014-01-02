@@ -39,73 +39,35 @@ var registers = {
 	RxGyro : 0,
 	RyGyro : 0,
 	RzGyro : 0,
-	Axz:0,
-	Ayz:0
+	Axz : 0,
+	Ayz : 0,
+	pitch:0,
+	roll:0
 
 };
 
 var prevRegisters = {};
 
-var gyroWeight = 0.90;
-var accelWeight = 0.10;
+var gyroWeight = 0.98;
+var accelWeight = 0.02;
 
 //complementary filter based on http://www.pieter-jan.com/node/11
 //http://www.instructables.com/id/Guide-to-gyro-and-accelerometer-with-Arduino-inclu/
-
+var rnd = function(v){
+	return Math.round(v*10)/10;
+}
 var complementary = function(accel, gyro) {
-	//our accel has 10 bit resolution so 1024 = 4G, 1G = 256, 0.5G = 128, 0.25G = 64
+	//sign flips for correcting coods btw gyro and accel
+	var flipGyroTy = (gyro.DPSy) * -1;
 
-	//registers.pitch = gyro.x;
-	//originally PJ subtracted out the roll to keep the signs the same..
-	//registers.roll = gyro.y;
-	//registers.yaw = gyro.z;
-
-	prevRegisters = registers;
-
-	registers.accel = accel;
-	registers.gyro = gyro;
-
-	//start with the Accel's values
-	registers.RxEst = accel.Rx;
-	registers.RyEst = accel.Ry;
-	registers.RzEst = accel.Rz;
-
-	var avgRateAxz = (gyro.Axz + prevRegisters.Axz) / 2;
-	registers.Axz = prevRegisters.Axz + avgRateAxz * dt;
-	var avgRateAyz = (gyro.Ayz + prevRegisters.Ayz) / 2;
-	registers.Ayz = prevRegisters.Ayz + avgRateAyz * dt;
-
-	registers.RxGyro = Math.sin(registers.Axz) / Math.sqrt(1 + Math.pow(Math.cos(registers.Axz), 2) * Math.pow(Math.tan(registers.Ayz), 2));
-	registers.RyGyro = Math.sin(registers.Ayz) / Math.sqrt(1 + Math.pow(Math.cos(registers.Ayz), 2) * Math.pow(Math.tan(registers.Axz), 2));
-	var s = function(v) {
-		if (v >= 0) {
-			return 1
-		} else {
-			return -1
-		};
-	};
-	registers.RzGyro = s(gyro.Rz) * Math.sqrt(1 - Math.pow(registers.RxGyro, 2) - Math.pow(registers.RyGyro, 2));
+	registers.pitch += flipGyroTy;
+	registers.roll +=gyro.DPSx;
 	
-	//sign flips
-	
-	registers.pitch = Math.round((accel.pitchAcc*0.10+gyro.Ty*0.90)*100)/100;
-	registers.roll = Math.round((accel.rollAcc*0.02+gyro.Tx*0.98)*100)/100;
-	
-	console.log(registers.pitch,accel.pitchAcc,gyro.Ty);
-	
-
-	/*
-	 if (accel.Gmag > 64 && accel.Gmag < 1024) {
-	 //TODO: suggest moving the vector calcs into the accel class.
-	 var pitchAcc = Math.atan2(accel.LSBy, accel.LSBz) * 180 / m_pi;
-	 var rollAcc = Math.atan2(accel.LSBx, accel.LSBz) * 180 / m_pi;
-	 //TODO: need to calc a yaw vector.
-	 registers.pitch = registers.pitch * gyroWeight + pitchAcc * accelWeight;
-	 registers.roll = registers.roll * gyroWeight + rollAcc * accelWeight;
-	 //console.log(registers);
-	 };
-	 */
-	//console.log(Math.round(registers.RxEst*100)/100,Math.round(registers.RyEst*100)/100,Math.round(registers.RzEst*100)/100);
+	if (accel.Gmag > 0.5 && accel.Gmag < 2.0) {
+		registers.pitch = (registers.pitch * gyroWeight) + (accel.pitch * accelWeight);
+		registers.roll = (registers.roll * gyroWeight) + (accel.roll * accelWeight);
+	}
+	console.log(rnd(registers.pitch),rnd(registers.roll));
 
 };
 var getAngle = function() {
