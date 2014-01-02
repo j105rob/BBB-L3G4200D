@@ -9,7 +9,6 @@ if ( typeof exports === 'undefined')
  This is using I2C for comms
 
  ODR is 100 Hz for my Normal Mode
- SDO pulled to ground for address of 0x68
 
  TODO: need to dump the gyro registers at startup for validation of running config
 
@@ -110,30 +109,52 @@ var waitForData = function() {
 	}
 };
 
-var minCalibration = 50;
+var minCalibration = 100;
 //at 250 DPS, 1 unit = 0.00875 degrees
 // which means that 114.28 units = 1 degree
 var dpu = 114.28;
 
-var accum = {
-	x : 0,
-	y : 0,
-	z : 0
+var registers = {
+	Rx : 0,
+	Ry : 0,
+	Rz : 0,
+	R:0,
+	LSBx : 0,
+	LSBy : 0,
+	LSBz : 0,
+	Tx : 0,
+	Ty : 0,
+	Tz : 0,
+	Axz:0,
+	Ayz:0
+	
 };
 var dt = 0.01;
 //sample rate 10 ms or 100Hz
-
+var m_pi = 3.14159265359;
 //angle is an integral
 //concept taken from: http://www.pieter-jan.com/node/7
 var getAngle = function() {
-	var sample = {}
 	read(function(data) {
-		sample.x = (data.x - calibrated.x) / dpu * dt;
-		sample.y = (data.y - calibrated.y) / dpu *dt;
-		sample.z = (data.z - calibrated.z) / dpu *dt;
-		accum.x += sample.x;
-		accum.y += sample.y;
-		accum.z += sample.z;
+		registers.LSBx = data.x - calibrated.x
+		registers.LSBy = data.y - calibrated.y
+		registers.LSBz = data.z - calibrated.z
+		
+		registers.DPSx = registers.LSBx / dpu * dt;
+		registers.DPSy = registers.LSBy / dpu * dt;
+		registers.DPSz = registers.LSBz / dpu * dt;
+		
+		registers.R = Math.sqrt(Math.pow(registers.DPSx,2)+Math.pow(registers.DPSy,2)+Math.pow(registers.DPSz,2));
+		registers.Rx = registers.DPSx/registers.R;
+		registers.Ry = registers.DPSy/registers.R;
+		registers.Rz = registers.DPSz/registers.R;
+		
+		registers.Tx += registers.DPSx;
+		registers.Ty += registers.DPSy;
+		registers.Tz += registers.DPSz;
+		
+
+		
 	});
 };
 
@@ -150,8 +171,8 @@ var run = function() {
 var stop = function() {
 	isOn = false;
 };
-var angle = function(observer){
-	observer(accum);
+var angle = function(observer) {
+	observer(registers);
 };
 var read = function(observer) {
 	if (waitForData()) {
@@ -220,7 +241,7 @@ var calibrate = function() {
 	for (var i = 0; i < minCalibration; i++) {
 
 		read(function(data) {
-			console.log("Calibration data: ", data);
+			//console.log("Calibration data: ", data);
 			cx += data.x;
 			cy += data.y;
 			cz += data.z;
@@ -229,7 +250,7 @@ var calibrate = function() {
 	calibrated.x = cx / minCalibration;
 	calibrated.y = cy / minCalibration;
 	calibrated.z = cz / minCalibration;
-	console.log("Calibration Complete", calibrated);
+	console.log("Gyro Calibration Complete", calibrated);
 };
 
 //exports below

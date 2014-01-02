@@ -52,7 +52,10 @@ var register = {
 
 var address = 0x53;
 var port = '/dev/i2c-1';
-var minCalibration = 50;
+
+//min calib based on spec sheet
+var minCalibration = 100;
+
 var command = {
 	normal_mode : 0x01,
 	measurement_mode : 0x08
@@ -68,7 +71,7 @@ var initialize = function(args) {
 	if (args.lowPass) {
 		options.lowPass = args.lowPass;
 	}
-	console.log(options);
+	console.log("Accel Options:", options);
 
 	wire.writeBytes(register.DATA_FORMAT, [command.normal_mode], function(err) {
 		console.log("Initialize Error Data Format:", err);
@@ -79,42 +82,69 @@ var initialize = function(args) {
 		deviceReady = false;
 	});
 	deviceReady = true;
-	//calibrate();
+	calibrate();
 };
 //Convert the accelerometer value to G's.
 //With 10 bits measuring over a +/-4g range we can find how to convert by using the equation:
 //G-range = 8 because -4 to +4 is 8;
-// Gs = Measurement Value * (G-range /(2^10)) or Gs = Measurement Value * (8/1024)
-var Gs = 0.0078;
-var dt = 0.01;
-//10ms or 100 Hz
-var accum = {
-	xgs : 0,
-	ygs : 0,
-	zgs : 0,
-	xraw : 0,
-	yraw : 0,
-	zraw : 0,
-	forceMagnitude : 0
+// ScaleFactor = Measurement Value * (G-range /(2^10)) or Gs = Measurement Value * (8/1024)
+var ScaleFactor = 0.0078;
+//pi
+var m_pi = 3.14159265359;
+//G = LSB converted to Gravity
+//LSB = is the calibrated LSB
+//R = Inertial force vector
+//Rx..Rz = normalized inertial vector
+//A = the angles btw R & x..z
+
+var registers = {
+	Gx : 0,
+	Gy : 0,
+	Gz : 0,
+	LSBx : 0,
+	LSBy : 0,
+	LSBz : 0,
+	Gmag : 0,
+	R : 0,
+	Rx : 0,
+	Ry : 0,
+	Rz : 0,
+	Axr : 0,
+	Ayr : 0,
+	Azr : 0
 };
 var angle = function(observer) {
-	observer(accum);
+	observer(registers);
 };
 var getAngle = function(observer) {
 	read(function(data) {
+		registers.LSBx = (data.x + calibrated.x);
+		registers.LSBy = (data.y + calibrated.y);
+		registers.LSBz = (data.z + calibrated.z);
+		registers.Gx = registers.LSBx * ScaleFactor;
+		registers.Gy = registers.LSBy * ScaleFactor;
+		registers.Gz = registers.LSBz * ScaleFactor;
 
-		accum.xgs = (data.x - calibrated.x) * Gs;
-		accum.ygs = (data.y - calibrated.y) * Gs;
-		accum.zgs = (data.z - calibrated.z) * Gs;
-		accum.xraw = (data.x - calibrated.x);
-		accum.yraw = (data.y - calibrated.y);
-		accum.zraw = (data.z - calibrated.z) ;
-		accum.forceMagnitude = (Math.abs(accum.xraw) + Math.abs(accum.yraw) + Math.abs(accum.zraw));
+		registers.R = Math.sqrt(Math.pow(registers.Gx, 2) + Math.pow(registers.Gy, 2) + Math.pow(registers.Gz, 2));
+		//normalized inertial force vector
+		registers.Rx = registers.Gx / registers.R;
+		registers.Ry = registers.Gy / registers.R;
+		registers.Rz = registers.Gz / registers.R;
+
+		registers.Axr = Math.acos(registers.Gx / registers.R);
+		registers.Ayr = Math.acos(registers.Gy / registers.R);
+		registers.Azr = Math.acos(registers.Gz / registers.R);
+
+		registers.rollAcc = Math.atan2(registers.Gy, registers.Gz)*180/m_pi;
+		registers.pitchAcc = Math.atan2(registers.Gx, registers.Gz)*180/m_pi;
+		registers.yawAcc = Math.atan2(registers.Gy,registers.Gx)*180/m_pi;
+
+		registers.Gmag = (Math.abs(registers.Gx) + Math.abs(registers.Gy) + Math.abs(registers.Gz));
 	});
 };
 
 var isOn = true;
-//this puts the gyro into a loop
+//this puts the accel into a loop
 var run = function() {
 	if (isOn) {
 		process.nextTick( function() {
@@ -126,9 +156,7 @@ var run = function() {
 var stop = function() {
 	isOn = false;
 };
-var angle = function(observer) {
-	observer(accum);
-};
+
 var calibrated = {
 	x : 0,
 	y : 0,
@@ -139,16 +167,18 @@ var calibrate = function() {
 	for (var i = 0; i < minCalibration; i++) {
 
 		read(function(data) {
-			console.log("Accel Calibration data: ", data);
+			//console.log("Accel Calibration data: ", data);
 			cx += data.x;
 			cy += data.y;
 			cz += data.z;
 		});
 	}
-	calibrated.x = cx / minCalibration;
-	calibrated.y = cy / minCalibration;
-	calibrated.z = cz / minCalibration;
-	//calibrated.forceMagnitude = (Math.abs(cx) + Math.abs(cy) + Math.abs(cz)) / minCalibration;
+	console.log("Accel Calib Accums (x,y,z):", cx, cy, cz);
+	calibrated.x = ((cx / minCalibration) / 4) * -1;
+	calibrated.y = ((cy / minCalibration) / 4) * -1;
+
+	calibrated.z = (((cz / minCalibration) - 256) / 4) * -1;
+
 	console.log("Accel Calibration Complete", calibrated);
 };
 var read = function(observer) {
@@ -186,24 +216,24 @@ var read = function(observer) {
 			});
 		}], function(err, res) {
 			// my guess is that this is where the segfault is happening.
-			 var xl = res[0].readInt8(0);
-			 var xh = res[1].readInt8(0) << 8;
-			 var yl = res[2].readInt8(0);
-			 var yh = res[3].readInt8(0) << 8;
-			 var zl = res[4].readInt8(0);
-			 var zh = res[5].readInt8(0) << 8;
-			 //console.log("test",xh|xl);
-			 ////^^^^-----^^^^
+			var xl = res[0].readInt8(0);
+			var xh = res[1].readInt8(0) << 8;
+			var yl = res[2].readInt8(0);
+			var yh = res[3].readInt8(0) << 8;
+			var zl = res[4].readInt8(0);
+			var zh = res[5].readInt8(0) << 8;
+			//console.log("test",xh|xl);
+			////^^^^-----^^^^
 			var r = {};
-			
+
 			r.x = res[1].readInt8(0) << 8 | res[0].readInt8(0);
 			r.y = res[3].readInt8(0) << 8 | res[2].readInt8(0);
 			r.z = res[5].readInt8(0) << 8 | res[4].readInt8(0);
 			/*
-			r.x = xl+xh;
-			r.y = yl+yh;
-			r.z = zl+zh;
-			*/
+			 r.x = xl+xh;
+			 r.y = yl+yh;
+			 r.z = zl+zh;
+			 */
 			if (options.lowPass) {
 				observer(lowPass.filter(r));
 			} else {
