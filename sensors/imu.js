@@ -10,6 +10,8 @@ if ( typeof exports === 'undefined')
 
 var gyro = require("./l3g4200d");
 var accel = require("./adxl345");
+var trigger = require("./trigger");
+
 var async = require("async");
 
 var initialize = function() {
@@ -22,6 +24,10 @@ var initialize = function() {
 		lowPass : true
 	});
 	accel.run();
+
+	//start the trigger
+	trigger.initialize();
+	trigger.run();
 };
 
 //10ms or 100 Hz
@@ -41,8 +47,9 @@ var registers = {
 	RzGyro : 0,
 	Axz : 0,
 	Ayz : 0,
-	pitch:0,
-	roll:0
+	pitch : 0,
+	roll : 0,
+	trigger:0
 
 };
 
@@ -53,21 +60,21 @@ var accelWeight = 0.02;
 
 //complementary filter based on http://www.pieter-jan.com/node/11
 //http://www.instructables.com/id/Guide-to-gyro-and-accelerometer-with-Arduino-inclu/
-var rnd = function(v){
-	return Math.round(v*10)/10;
+var rnd = function(v) {
+	return Math.round(v * 10) / 10;
 }
 var complementary = function(accel, gyro) {
 	//sign flips for correcting coods btw gyro and accel
 	var flipGyroTy = (gyro.DPSy) * -1;
 
 	registers.pitch += flipGyroTy;
-	registers.roll +=gyro.DPSx;
-	
+	registers.roll += gyro.DPSx;
+
 	if (accel.Gmag > 0.5 && accel.Gmag < 2.0) {
 		registers.pitch = (registers.pitch * gyroWeight) + (accel.pitch * accelWeight);
 		registers.roll = (registers.roll * gyroWeight) + (accel.roll * accelWeight);
 	}
-	console.log(rnd(registers.pitch),rnd(registers.roll));
+	console.log(rnd(registers.pitch), rnd(registers.roll));
 
 };
 var getAngle = function() {
@@ -75,6 +82,8 @@ var getAngle = function() {
 	read(function(data) {
 		//implement the complementary filter
 		complementary(data.accel, data.gyro);
+		//set the trigger state
+		registers.trigger = data.trigger;
 	});
 
 };
@@ -106,6 +115,11 @@ var read = function(observer) {
 			accel : function(callback) {
 				accel.angle(function(data) {
 					callback(null, data);
+				});
+			},
+			trigger : function(callback) {
+				trigger.state(function(data) {
+					callback(null, data)
 				});
 			}
 		}, function(err, res) {
