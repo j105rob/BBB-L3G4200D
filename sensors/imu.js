@@ -74,7 +74,7 @@ var complementary = function(accel, gyro) {
 		registers.pitch = (registers.pitch * gyroWeight) + (accel.pitch * accelWeight);
 		registers.roll = (registers.roll * gyroWeight) + (accel.roll * accelWeight);
 	}
-	console.log(rnd(registers.pitch), rnd(registers.roll));
+	//console.log(rnd(registers.pitch), rnd(registers.roll));
 
 };
 var getAngle = function() {
@@ -83,11 +83,11 @@ var getAngle = function() {
 		//implement the complementary filter
 		complementary(data.accel, data.gyro);
 		//set the trigger state
-		registers.trigger = data.trigger;
+		registers.trigger = data.trigger.triggerState;
 	});
 
 };
-var angle = function(observer) {
+var state = function(observer) {
 	observer(registers);
 };
 var isOn = true;
@@ -136,4 +136,4 @@ var read = function(observer) {
 exports.initialize = initialize;
 exports.run = run;
 exports.stop = stop;
-exports.angle = angle;
+exports.state = state;

@@ -8,16 +8,16 @@ imu.run();
 
 function send() {
 	process.nextTick( function() {
-		imu.angle(function(data) {
-			/*
+		imu.state(function(data) {
+			
 			var smoothed = data;
-			console.log("gyro data:",data);
+			console.log(data.roll,data.pitch,data.trigger);
 			var buf = new Buffer(12);
-			buf.writeFloatLE(smoothed.x, 0);
-			buf.writeFloatLE(smoothed.y, 4);
-			buf.writeFloatLE(smoothed.z, 8);
+			buf.writeFloatLE(smoothed.roll, 0);
+			buf.writeFloatLE(smoothed.pitch, 4);
+			buf.writeFloatLE(smoothed.trigger, 8);
 			blenderClient.send(buf);
-			*/
+			
 			send();
 		});
 

@@ -21,7 +21,7 @@ var registers = {
 	triggerState : 0
 };
 var state = function(observer){
-	return observer(resisters);
+	return observer(registers);
 }
 var initialize = function() {
 };
