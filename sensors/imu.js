@@ -1,7 +1,7 @@
 if ( typeof exports === 'undefined')
 	exports = {};
 /*
- * IMU combines the Accel & Gyro Data
+ * IMU combines the Accel & Gyro Data also adds trigger and n50 gamepad
  * ====================================
  *
  * READ THIS!!! http://www.starlino.com/imu_guide.html
@@ -11,6 +11,7 @@ if ( typeof exports === 'undefined')
 var gyro = require("./l3g4200d");
 var accel = require("./adxl345");
 var trigger = require("./trigger");
+var n50 = require("./n50");
 
 var async = require("async");
 
@@ -28,32 +29,17 @@ var initialize = function() {
 	//start the trigger
 	trigger.initialize();
 	trigger.run();
+	
+	//start the gamepad
+	n50.initialize();
 };
 
-//10ms or 100 Hz
-var dt = 0.01;
-//pi
-var m_pi = 3.14159265359;
-
-// y axis is roll
-// x axis is pitch
-// z axis is yaw
 var registers = {
-	RxEst : 0,
-	RyEst : 0,
-	RzEst : 0,
-	RxGyro : 0,
-	RyGyro : 0,
-	RzGyro : 0,
-	Axz : 0,
-	Ayz : 0,
 	pitch : 0,
 	roll : 0,
 	trigger:0
 
 };
-
-var prevRegisters = {};
 
 var gyroWeight = 0.98;
 var accelWeight = 0.02;
@@ -75,6 +61,8 @@ var complementary = function(accel, gyro) {
 		registers.roll = (registers.roll * gyroWeight) + (accel.roll * accelWeight);
 	}
 	//console.log(rnd(registers.pitch), rnd(registers.roll));
+	registers.pitch = rnd(registers.pitch);
+	registers.roll = rnd(registers.roll);
 
 };
 var getAngle = function() {
@@ -91,7 +79,7 @@ var state = function(observer) {
 	observer(registers);
 };
 var isOn = true;
-//this puts the gyro into a loop
+//this puts the imu into a loop
 var run = function() {
 	if (isOn) {
 		process.nextTick( function() {
