@@ -42,7 +42,7 @@ var devices = HID.devices();
 var n50Raw = new HID.HID(devices[0].path);
 var registers = {
 	hat:0,
-	Keys:0,
+	keys:0,
 	wheel:0	
 };
 var state = function(observer){

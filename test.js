@@ -15,13 +15,14 @@ process.stdin.on('data', function(data) {
 function send() {
 	process.nextTick( function() {
 		imu.state(function(data) {
+			var buf = new Buffer(24);
+			buf.writeFloatLE(data.roll, 0);
+			buf.writeFloatLE(data.pitch, 4);
+			buf.writeFloatLE(data.trigger, 8);
+			buf.writeFloatLE(data.n50.hat, 12);
+			buf.writeFloatLE(data.n50.wheel, 16);
+			buf.writeFloatLE(data.n50.keys, 20);
 			
-			var smoothed = data;
-			//console.log(data.roll,data.pitch,data.trigger);
-			var buf = new Buffer(12);
-			buf.writeFloatLE(smoothed.roll, 0);
-			buf.writeFloatLE(smoothed.pitch, 4);
-			buf.writeFloatLE(smoothed.trigger, 8);
 			blenderClient.send(buf);
 			
 			send();

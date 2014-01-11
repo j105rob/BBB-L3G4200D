@@ -72,6 +72,8 @@ var getAngle = function() {
 		complementary(data.accel, data.gyro);
 		//set the trigger state
 		registers.trigger = data.trigger.triggerState;
+		//set the n50 state
+		registers.n50 = data.n50;
 	});
 
 };
@@ -107,6 +109,11 @@ var read = function(observer) {
 			},
 			trigger : function(callback) {
 				trigger.state(function(data) {
+					callback(null, data)
+				});
+			},
+			n50 : function(callback) {
+				n50.state(function(data) {
 					callback(null, data)
 				});
 			}
