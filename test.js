@@ -6,12 +6,6 @@ var blenderClient = require("./clients/blenderClient");
 imu.initialize();
 imu.run();
 
-process.stdin.resume();
-process.stdin.setEncoding('utf8');
-process.stdin.on('data', function(data) {
-  process.stdout.write("Got Data: "+data);
-});
-
 function send() {
 	process.nextTick( function() {
 		imu.state(function(data) {
