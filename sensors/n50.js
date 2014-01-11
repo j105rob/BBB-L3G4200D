@@ -37,31 +37,23 @@ var value = {
 };
 
 var HID = require('node-hid');
-var hidstream = require('hidstream');
 var devices = HID.devices();
 //assumption is that there is only one HID on the gun attached to USB and it is the n50!!
-var n50 = new hidstream.device(devices[0].path);
 var n50Raw = new HID.HID(devices[0].path);
 var registers = {
-
+	hat:0,
+	Keys:0,
+	wheel:0	
 };
 var state = function(observer){
 	return observer(registers);
 }
 var initialize = function() {
 	n50Raw.on("data", function(data) {
-		var hat = data.readUInt16LE(0);
-		var keys = data.readUInt16LE(2);
-		var wheel = data.readUInt8(4);
-
-
-		
-		console.log(hat,keys,wheel);
-		console.log("****************************");
+		registers.hat = data.readUInt16LE(0);
+		registers.keys = data.readUInt16LE(2);
+		registers.wheel = data.readUInt8(4);
 	});
-};
-var setState = function() {
-
 };
 //exports below
 exports.initialize = initialize;
