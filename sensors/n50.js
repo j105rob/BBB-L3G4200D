@@ -4,8 +4,37 @@ if ( typeof exports === 'undefined')
  * n50 is the nostromo n50 gamepad
  * ==================================================
  * 
- *
+ * seems to deliver the data via a buffer in the following format:
+ * 
+ * first byte is left and right on the hat
+ * second byte is forward and back
+ * third and forth byte are the keys
+ * fifth byte is the wheel
+ * 
+ * by combining the bytes in the associated groups we can use bitwise logic to determine keys pressed
+ * 
+ * 
  */
+
+var value = {
+	hatCenter:32896,
+	hatLeft: 32768,
+	hatRight:33023,
+	hatForward:128,
+	hatBackward:65408,
+	wheelMin:47,
+	wheelMax:255,
+	key1:1,
+	key2:2,
+	key3:4,
+	key4:8,
+	key5:16,
+	key6:32,
+	key7:64,
+	key8:128,
+	key9:256,
+	key10:512	
+};
 
 var HID = require('node-hid');
 var hidstream = require('hidstream');
@@ -21,14 +50,13 @@ var state = function(observer){
 }
 var initialize = function() {
 	n50Raw.on("data", function(data) {
-		var seg1 = data.readInt8(0);
-		var seg2 = data.readInt8(1);
-		var seg3 = data.readInt8(2);
-		var seg4 = data.readInt8(3);
-		var tot = seg1+seg2+seg3+seg4;
+		var hat = data.readUInt16LE(0);
+		var keys = data.readUInt16LE(2);
+		var wheel = data.readUInt8(4);
+
 
 		
-		console.log(seg1,seg2,seg3,seg4);
+		console.log(hat,keys,wheel);
 		console.log("****************************");
 	});
 };
