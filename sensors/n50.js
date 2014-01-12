@@ -16,7 +16,7 @@ if ( typeof exports === 'undefined')
  * 
  */
 
-var value = {
+var keys = {
 	hatCenter:32896,
 	hatLeft: 32768,
 	hatRight:33023,
@@ -58,3 +58,4 @@ var initialize = function() {
 //exports below
 exports.initialize = initialize;
 exports.state = state;
+exports.keys = keys;
