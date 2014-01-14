@@ -13,10 +13,10 @@ imu.run();
 function send() {
 	process.nextTick( function() {
 		imu.state(function(data) {
-			console.log(data.pitch,data.roll);
+			//console.log(data.pitch,data.roll);
 			var buf = new Buffer(24);
-			buf.writeFloatLE(data.pitch, 0);
-			buf.writeFloatLE(data.roll, 4);
+			buf.writeFloatLE(data.pitchDiff, 0);
+			buf.writeFloatLE(data.rollDiff, 4);
 			buf.writeUInt8(data.trigger, 8);
 			buf.writeUInt8(data.n50.wheel, 9);
 			

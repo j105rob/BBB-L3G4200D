@@ -29,7 +29,7 @@ var initialize = function() {
 	//start the trigger
 	trigger.initialize();
 	trigger.run();
-	
+
 	//start the gamepad
 	n50.initialize();
 };
@@ -37,18 +37,20 @@ var initialize = function() {
 var registers = {
 	pitch : 0,
 	roll : 0,
-	trigger:0
+	trigger : 0
 
 };
 
-var gyroWeight = 0.98;
-var accelWeight = 0.02;
+var gyroWeight = 0.95;
+var accelWeight = 0.05;
 
 //complementary filter based on http://www.pieter-jan.com/node/11
 //http://www.instructables.com/id/Guide-to-gyro-and-accelerometer-with-Arduino-inclu/
 var rnd = function(v) {
 	return Math.round(v * 10) / 10;
 }
+var gMagAccum = 0;
+//TODO: move this func into a filter
 var complementary = function(accel, gyro) {
 	//sign flips for correcting coods btw gyro and accel
 	var flipGyroTy = (gyro.DPSy) * -1;
@@ -56,7 +58,9 @@ var complementary = function(accel, gyro) {
 	registers.pitch += flipGyroTy;
 	registers.roll += gyro.DPSx;
 
-	if (accel.Gmag > 0.5 && accel.Gmag < 2.0) {
+	//console.log(process.uptime());
+
+	if (accel.R > 0.9 && accel.R < 2.0) {
 		registers.pitch = (registers.pitch * gyroWeight) + (accel.pitch * accelWeight);
 		registers.roll = (registers.roll * gyroWeight) + (accel.roll * accelWeight);
 	}
@@ -65,9 +69,41 @@ var complementary = function(accel, gyro) {
 	registers.roll = rnd(registers.roll);
 
 };
+var center = {
+	roll : 0,
+	pitch : 0,
+	x1 : 0.5,
+	y1 : 0.5,
+
+};
+//http://stackoverflow.com/questions/1471370/normalizing-from-0-5-1-to-0-1
+var setCenter = function() {
+	//check for re-center key
+	if (registers.n50.keys & n50.keys.key5) {
+		center.roll = registers.roll;
+		center.pitch = registers.pitch;
+
+	} else {
+		if (registers.n50.keys & n50.keys.key1) {
+			center.roll = registers.roll;
+			center.pitch = registers.pitch;
+		};
+
+		//normailze the center
+		registers.pitchDiff = center.pitch - registers.pitch;
+		registers.rollDiff = center.roll - registers.roll;
+
+		//reset the guns center
+		center.roll = registers.roll;
+		center.pitch = registers.pitch;
+
+		//console.log(registers.sPitch);
+	}
+};
+var ticks = 0;
 var getAngle = function() {
-	//need to parallelize the calls to the sensors, then process when data arrives
 	read(function(data) {
+		ticks += 1;
 		//implement the complementary filter
 		complementary(data.accel, data.gyro);
 		//set the trigger state
@@ -86,6 +122,7 @@ var run = function() {
 	if (isOn) {
 		process.nextTick( function() {
 			getAngle();
+			setCenter();
 			run();
 		}.bind(this));
 	}
