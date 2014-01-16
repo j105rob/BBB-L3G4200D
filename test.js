@@ -7,22 +7,23 @@ imu.initialize();
 imu.run();
 
 //packet layout
-// rrrrpppptw hhkk
+// rrrrpppptt tt
 // 0123456789 0123456789 0123456789
 
 function send() {
 	process.nextTick( function() {
 		imu.state(function(data) {
-			//console.log(data.pitch,data.roll);
+			//console.log(data.n50.keys,data.n50.hat);
 			var buf = new Buffer(24);
 			buf.writeFloatLE(data.pitchDiff, 0);
 			buf.writeFloatLE(data.rollDiff, 4);
-			buf.writeUInt8(data.trigger, 8);
-			buf.writeUInt8(data.n50.wheel, 9);
+			buf.writeFloatLE(data.trigger, 8);
 			
-			buf.writeUInt16LE(data.n50.hat, 10);
+			buf.writeFloatLE(data.n50.wheel, 12);
 			
-			buf.writeUInt16LE(data.n50.keys, 12);
+			buf.writeFloatLE(data.n50.hat, 16);
+			
+			buf.writeFloatLE(data.n50.keys, 20);
 			
 			blenderClient.send(buf);
 			
